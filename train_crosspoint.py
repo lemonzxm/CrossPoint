@@ -22,7 +22,7 @@ from datasets.data import ShapeNetRender, ModelNet40SVM
 from models.dgcnn import DGCNN, ResNet, DGCNN_partseg
 from util import IOStream, AverageMeter
 
-
+#初始化创建文件路径
 def _init_():
     if not os.path.exists('checkpoints'):
         os.makedirs('checkpoints')
@@ -34,13 +34,13 @@ def _init_():
 def train(args, io):
     
     wandb.init(project="CrossPoint", name=args.exp_name)
-    
+    #数据增强，调整大小，按照一定概率随机调整亮度、对比度、饱和度，水平翻转，最后对每个图像通道进行标准化
     transform = transforms.Compose([transforms.Resize((224, 224)),
                                 transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4),
                                 transforms.RandomHorizontalFlip(),
                                 transforms.ToTensor(), 
                                 transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])])
-
+    #ShapeNetRender自定义数据集，n_imgs=2 表示每个数据点（样本）包含 2 张图像
     train_loader = DataLoader(ShapeNetRender(transform, n_imgs = 2), num_workers=0,
                               batch_size=args.batch_size, shuffle=True, drop_last=True)
 
@@ -56,7 +56,8 @@ def train(args, io):
         
     img_model = ResNet(resnet50(), feat_dim = 2048)
     img_model = img_model.to(device)
-        
+
+    #追踪和记录模型的训练过程中的重要信息
     wandb.watch(point_model)
     
     if args.resume:
@@ -118,7 +119,7 @@ def train(args, io):
             
             if i % args.print_freq == 0:
                 print('Epoch (%d), Batch(%d/%d), loss: %.6f, imid loss: %.6f, cmid loss: %.6f ' % (epoch, i, len(train_loader), train_losses.avg, train_imid_losses.avg, train_cmid_losses.avg))
-                
+        #记录平均损失        
         wandb_log['Train Loss'] = train_losses.avg
         wandb_log['Train IMID Loss'] = train_imid_losses.avg
         wandb_log['Train CMID Loss'] = train_cmid_losses.avg
@@ -164,6 +165,7 @@ def train(args, io):
         feats_test = np.array(feats_test)
         labels_test = np.array(labels_test)
         
+        #使用支持向量机（SVM）模型，选择线性核和正则化强度 C=0.1，并用训练集（特征数据 feats_train 和标签 labels_train）来训练这个模型
         model_tl = SVC(C = 0.1, kernel ='linear')
         model_tl.fit(feats_train, labels_train)
         test_accuracy = model_tl.score(feats_test, labels_test)
