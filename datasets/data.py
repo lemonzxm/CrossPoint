@@ -114,7 +114,8 @@ class ShapeNetRender(Dataset):
 
     def __len__(self):
         return len(self.data)
-    
+                
+#继承 Dataset 类：符合 PyTorch 数据加载的标准，方便与 DataLoader 结合使用。
 class ModelNet40SVM(Dataset):
     def __init__(self, num_points, partition='train'):
         self.data, self.label = load_modelnet_data(partition)
